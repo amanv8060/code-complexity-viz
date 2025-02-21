@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Complexity Visualizer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .upload-section {
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 2px dashed #ccc;
+            border-radius: 4px;
+            text-align: center;
+        }
+        #visualization {
+            margin-top: 20px;
+        }
+        .function-node {
+            fill: #4293c3;
+            stroke: #fff;
+            transition: fill 0.3s;
+        }
+        .function-node:hover {
+            fill: #2c7fb8;
+        }
+        .function-label {
+            font-size: 12px;
+            fill: #333;
+            transform: rotate(-45deg);
+        }
+        .tooltip {
+            position: absolute;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            display: none;
+        }
+        .axis-label {
+            font-size: 12px;
+            fill: #666;
+        }
+        .metric-selector {
+            margin: 20px 0;
+            padding: 10px;
+            background: #fff;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .metric-description {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Code Complexity Visualizer</h1>
+        
+        <div class="upload-section">
+            <h2>Upload Go Source File</h2>
+            <input type="file" id="fileInput" accept=".go">
+            <button onclick="analyzeFile()">Analyze</button>
+        </div>
+
+        <div class="metric-selector">
+            <label for="metricSelect">Select Metric: </label>
+            <select id="metricSelect" onchange="updateVisualization()">
+                <option value="cyclomaticComplexity">Cyclomatic Complexity</option>
+                <option value="cognitiveComplexity">Cognitive Complexity</option>
+                <option value="maintainabilityIndex">Maintainability Index</option>
+                <option value="halsteadVolume">Halstead Volume</option>
+                <option value="linesOfCode">Lines of Code</option>
+            </select>
+            <div class="metric-description" id="metricDescription"></div>
+        </div>
+
+        <div class="tooltip"></div>
+        <div id="visualization"></div>
+    </div>
+
+    <script>
+        let currentData = null;
+        const metricDescriptions = {
+            cyclomaticComplexity: "Measures the number of linearly independent paths through code",
+            cognitiveComplexity: "Measures how difficult it is to understand the code's control flow",
+            maintainabilityIndex: "Indicates how maintainable the code is (higher is better)",
+            halsteadVolume: "Represents the size of the implementation of an algorithm",
+            linesOfCode: "Physical lines of code in the function"
+        };
+
+        function updateMetricDescription() {
+            const metric = document.getElementById('metricSelect').value;
+            document.getElementById('metricDescription').textContent = metricDescriptions[metric];
+        }
+
+        async function analyzeFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select a file first');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+                currentData = await response.json();
+                updateMetricDescription();
+                visualizeData();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error analyzing file');
+            }
+        }
+
+        function updateVisualization() {
+            if (currentData) {
+                updateMetricDescription();
+                visualizeData();
+            }
+        }
+
+        function visualizeData() {
+            const metric = document.getElementById('metricSelect').value;
+            
+            // Clear previous visualization
+            d3.select('#visualization').html('');
+
+            // Set up dimensions
+            const width = 800;
+            const height = 500;
+            const padding = {top: 40, right: 40, bottom: 100, left: 60};
+
+            // Create SVG
+            const svg = d3.select('#visualization')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+
+            // Create tooltip
+            const tooltip = d3.select('.tooltip');
+
+            // Create scales
+            const xScale = d3.scaleBand()
+                .domain(currentData.map(d => d.name))
+                .range([padding.left, width - padding.right])
+                .padding(0.1);
+
+            const yScale = d3.scaleLinear()
+                .domain([0, d3.max(currentData, d => d[metric])])
+                .range([height - padding.bottom, padding.top]);
+
+            // Create bars
+            svg.selectAll('rect')
+                .data(currentData)
+                .enter()
+                .append('rect')
+                .attr('x', d => xScale(d.name))
+                .attr('y', d => yScale(d[metric]))
+                .attr('width', xScale.bandwidth())
+                .attr('height', d => height - padding.bottom - yScale(d[metric]))
+                .attr('class', 'function-node')
+                .on('mouseover', function(event, d) {
+                    tooltip
+                        .style('display', 'block')
+                        .html(`
+                            <strong>${d.name}</strong><br>
+                            Cyclomatic: ${d.cyclomaticComplexity}<br>
+                            Cognitive: ${d.cognitiveComplexity}<br>
+                            Lines: ${d.linesOfCode}<br>
+                            Maintainability: ${d.maintainabilityIndex.toFixed(2)}<br>
+                            Halstead Volume: ${d.halsteadVolume.toFixed(2)}<br>
+                            Halstead Difficulty: ${d.halsteadDifficulty.toFixed(2)}
+                        `);
+                })
+                .on('mousemove', function(event) {
+                    tooltip
+                        .style('left', (event.pageX + 10) + 'px')
+                        .style('top', (event.pageY - 10) + 'px');
+                })
+                .on('mouseout', function() {
+                    tooltip.style('display', 'none');
+                });
+
+            // Add function names
+            svg.selectAll('.function-label')
+                .data(currentData)
+                .enter()
+                .append('text')
+                .attr('class', 'function-label')
+                .attr('x', d => xScale(d.name) + xScale.bandwidth() / 2)
+                .attr('y', height - padding.bottom + 20)
+                .attr('text-anchor', 'end')
+                .attr('transform', d => `rotate(-45, ${xScale(d.name) + xScale.bandwidth() / 2}, ${height - padding.bottom + 20})`)
+                .text(d => d.name);
+
+            // Add axes
+            const xAxis = d3.axisBottom(xScale);
+            const yAxis = d3.axisLeft(yScale);
+
+            svg.append('g')
+                .attr('transform', `translate(0, ${height - padding.bottom})`)
+                .call(xAxis);
+
+            svg.append('g')
+                .attr('transform', `translate(${padding.left}, 0)`)
+                .call(yAxis);
+
+            // Add axis labels
+            svg.append('text')
+                .attr('class', 'axis-label')
+                .attr('x', width / 2)
+                .attr('y', height - 10)
+                .attr('text-anchor', 'middle')
+                .text('Functions');
+
+            svg.append('text')
+                .attr('class', 'axis-label')
+                .attr('transform', 'rotate(-90)')
+                .attr('x', -height / 2)
+                .attr('y', 20)
+                .attr('text-anchor', 'middle')
+                .text(metricDescriptions[metric]);
+        }
+    </script>
+</body>
+</html>
