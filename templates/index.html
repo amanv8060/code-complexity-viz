@@ -26,6 +26,23 @@
             color: var(--text-primary);
         }
 
+        .github-corner {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--bg-color);
+            padding: 12px 20px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+            transition: transform 0.2s ease;
+        }
+
+        .github-corner:hover {
+            transform: translateY(-2px);
+            background: var(--bg-color);
+        }
+
         .container {
             max-width: 1400px;
             margin: 0 auto;
@@ -461,6 +478,10 @@
         </div>
     </div>
 
+    <div class="github-corner">
+        <a class="github-button" href="https://github.com/amanv8060/code-complexity-viz" data-color-scheme="no-preference: light; light: light; dark: dark;" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star amanv8060/code-complexity-viz on GitHub">Star</a>
+    </div>
+
     <script>
         let wasmInstance = null;
         let currentMode = 'wasm';
@@ -761,5 +782,7 @@
         // Store current data for resize handling
         let currentData = null;
     </script>
+    <!-- GitHub Buttons -->
+    <script async defer src="https://buttons.github.io/buttons.js"></script>
 </body>
 </html>
