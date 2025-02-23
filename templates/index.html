@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Code Complexity Visualizer</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="/static/wasm_exec.js"></script>
+    <script src="static/wasm_exec.js"></script>
     <style>
         :root {
             --primary-color: #4293c3;
@@ -477,7 +477,7 @@
             try {
                 const go = new Go();
                 const result = await WebAssembly.instantiateStreaming(
-                    fetch("/static/analyzer.wasm"),
+                    fetch("static/analyzer.wasm"),
                     go.importObject
                 );
                 wasmInstance = result.instance;
@@ -574,7 +574,7 @@
 
         async function fetchSampleCode(type) {
             try {
-                const response = await fetch(`/static/samples/${type}.go`);
+                const response = await fetch(`static/samples/${type}.go`);
                 if (!response.ok) {
                     throw new Error('Failed to load sample code');
                 }
