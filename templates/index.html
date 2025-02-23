@@ -645,6 +645,17 @@
 
         // Initialize WASM on page load
         window.addEventListener('load', async () => {
+            // Check if running on GitHub Pages
+            const isGitHubPages = window.location.hostname.includes('github.io');
+            
+            // Disable server option if on GitHub Pages
+            if (isGitHubPages) {
+                const modeSelect = document.getElementById('modeSelect');
+                const serverOption = modeSelect.querySelector('option[value="server"]');
+                serverOption.disabled = true;
+                serverOption.text = 'Server (Disabled on GitHub Pages)';
+            }
+            
             await initWasm();
             await showCode('simple');
         });
