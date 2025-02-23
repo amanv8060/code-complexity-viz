@@ -1,0 +1,13 @@
+# Logs
+logs/
+*.log
+
+# Build artifacts
+dist/
+code-complexity-viz
+
+# WASM files
+static/analyzer.wasm
+static/wasm_exec.js
+
+.idea/

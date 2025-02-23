@@ -22,15 +22,19 @@ type Operand struct {
 
 // MetricsResult stores the complexity metrics for a single file or function
 type MetricsResult struct {
-	Name                   string  `json:"name"`
-	CyclomaticComplexity  int     `json:"cyclomaticComplexity"`
-	CognitiveComplexity   int     `json:"cognitiveComplexity"`
-	LinesOfCode           int     `json:"linesOfCode"`
-	HalsteadVolume        float64 `json:"halsteadVolume"`
-	HalsteadDifficulty    float64 `json:"halsteadDifficulty"`
-	HalsteadEffort        float64 `json:"halsteadEffort"`
-	MaintainabilityIndex  float64 `json:"maintainabilityIndex"`
-	NestingLevel          int     `json:"nestingLevel"`
+	Name                 string  `json:"name"`
+	CyclomaticComplexity int     `json:"cyclomaticComplexity"`
+	CognitiveComplexity  int     `json:"cognitiveComplexity"`
+	LinesOfCode          int     `json:"linesOfCode"`
+	HalsteadVolume       float64 `json:"halsteadVolume"`
+	HalsteadDifficulty   float64 `json:"halsteadDifficulty"`
+	HalsteadEffort       float64 `json:"halsteadEffort"`
+	MaintainabilityIndex float64 `json:"maintainabilityIndex"`
+	NestingLevel         int     `json:"nestingLevel"`
+	NestedDepth          int     `json:"nestedDepth"`
+	CommentDensity       float64 `json:"commentDensity"`
+	FunctionParameters   int     `json:"functionParameters"`
+	ReturnStatements     int     `json:"returnStatements"`
 }
 
 // FileAnalyzer handles the analysis of a single file
@@ -132,8 +136,8 @@ func (fa *FileAnalyzer) calculateHalsteadMetrics(node ast.Node) (volume, difficu
 
 	n1 := float64(len(operators)) // unique operators
 	n2 := float64(len(operands))  // unique operands
-	N1 := float64(0)             // total operators
-	N2 := float64(0)             // total operands
+	N1 := float64(0)              // total operators
+	N2 := float64(0)              // total operands
 
 	for _, count := range operators {
 		N1 += float64(count)
@@ -177,9 +181,9 @@ func (fa *FileAnalyzer) AnalyzeFunction(funcDecl *ast.FuncDecl) *MetricsResult {
 	cyclomaticComplexity := fa.CalculateCyclomaticComplexity(funcDecl)
 	cognitiveComplexity := fa.CalculateCognitiveComplexity(funcDecl)
 	linesOfCode := fa.CountLinesOfCode(funcDecl)
-	
+
 	volume, difficulty, effort := fa.calculateHalsteadMetrics(funcDecl)
-	
+
 	// Add validation for edge cases
 	if volume <= 0 {
 		volume = 1 // Avoid log(0) in maintainability index calculation
@@ -187,8 +191,20 @@ func (fa *FileAnalyzer) AnalyzeFunction(funcDecl *ast.FuncDecl) *MetricsResult {
 	if linesOfCode <= 0 {
 		linesOfCode = 1
 	}
-	
+
 	maintainabilityIndex := fa.CalculateMaintainabilityIndex(cyclomaticComplexity, volume, linesOfCode)
+
+	// Calculate nested depth
+	nestedDepth := fa.calculateNestedDepth(funcDecl)
+	
+	// Calculate comment density
+	commentDensity := fa.calculateCommentDensity(funcDecl)
+	
+	// Count parameters
+	paramCount := len(funcDecl.Type.Params.List)
+	
+	// Count return statements
+	returnCount := fa.countReturnStatements(funcDecl)
 
 	// Ensure all metrics are valid
 	if math.IsNaN(volume) || math.IsInf(volume, 0) {
@@ -205,7 +221,7 @@ func (fa *FileAnalyzer) AnalyzeFunction(funcDecl *ast.FuncDecl) *MetricsResult {
 	}
 
 	return &MetricsResult{
-		Name:                  funcDecl.Name.Name,
+		Name:                 funcDecl.Name.Name,
 		CyclomaticComplexity: cyclomaticComplexity,
 		CognitiveComplexity:  cognitiveComplexity,
 		LinesOfCode:          linesOfCode,
@@ -213,6 +229,10 @@ func (fa *FileAnalyzer) AnalyzeFunction(funcDecl *ast.FuncDecl) *MetricsResult {
 		HalsteadDifficulty:   math.Round(difficulty*100) / 100,
 		HalsteadEffort:       math.Round(effort*100) / 100,
 		MaintainabilityIndex: math.Round(maintainabilityIndex*100) / 100,
+		NestedDepth:        nestedDepth,
+		CommentDensity:     commentDensity,
+		FunctionParameters: paramCount,
+		ReturnStatements:   returnCount,
 	}
 }
 
@@ -228,4 +248,45 @@ func (fa *FileAnalyzer) AnalyzeFile() []*MetricsResult {
 	})
 
 	return results
+}
+
+// Add new analysis methods
+func (fa *FileAnalyzer) calculateNestedDepth(node ast.Node) int {
+	maxDepth := 0
+	currentDepth := 0
+
+	ast.Inspect(node, func(n ast.Node) bool {
+		switch n.(type) {
+		case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt, *ast.SelectStmt:
+			currentDepth++
+			if currentDepth > maxDepth {
+				maxDepth = currentDepth
+			}
+			return true
+		}
+		currentDepth = 0
+		return true
+	})
+
+	return maxDepth
+}
+
+func (fa *FileAnalyzer) calculateCommentDensity(node ast.Node) float64 {
+	comments := len(fa.ast.Comments)
+	lines := fa.CountLinesOfCode(node)
+	if lines == 0 {
+		return 0
+	}
+	return float64(comments) / float64(lines)
+}
+
+func (fa *FileAnalyzer) countReturnStatements(node ast.Node) int {
+	count := 0
+	ast.Inspect(node, func(n ast.Node) bool {
+		if _, ok := n.(*ast.ReturnStmt); ok {
+			count++
+		}
+		return true
+	})
+	return count
 }

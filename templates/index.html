@@ -5,30 +5,138 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Code Complexity Visualizer</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="/static/wasm_exec.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
+        :root {
+            --primary-color: #4293c3;
+            --hover-color: #2c7fb8;
+            --bg-color: #f5f5f5;
+            --card-bg: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --border-radius: 8px;
+            --spacing: 20px;
         }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: var(--spacing);
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+        }
+
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
+            background-color: var(--card-bg);
+            padding: var(--spacing);
+            border-radius: var(--border-radius);
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .upload-section {
-            margin-bottom: 20px;
-            padding: 20px;
-            border: 2px dashed #ccc;
-            border-radius: 4px;
+
+        .header {
             text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--bg-color);
         }
-        #visualization {
-            margin-top: 20px;
+
+        .header h1 {
+            margin: 0;
+            color: var(--primary-color);
+            font-size: 2.5em;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            margin: 10px 0 0;
+        }
+
+        .controls-section {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: var(--bg-color);
+            border-radius: var(--border-radius);
+            align-items: center;
+        }
+
+        .mode-selector {
+            flex: 1;
+        }
+
+        .upload-section {
+            flex: 2;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        select, button {
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 14px;
+        }
+
+        button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background: var(--hover-color);
+        }
+
+        .sample-link {
+            color: var(--primary-color);
+            text-decoration: none;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+
+        .sample-link:hover {
+            text-decoration: underline;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: var(--spacing);
+            margin-bottom: 40px;
+        }
+
+        .metric-card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .metric-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--text-primary);
+            text-align: center;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--bg-color);
+        }
+
+        .visualization {
+            width: 100%;
+            height: 300px;
         }
         .function-node {
             fill: #4293c3;
@@ -39,9 +147,8 @@
             fill: #2c7fb8;
         }
         .function-label {
-            font-size: 12px;
+            font-size: 10px;
             fill: #333;
-            transform: rotate(-45deg);
         }
         .tooltip {
             position: absolute;
@@ -57,67 +164,448 @@
             font-size: 12px;
             fill: #666;
         }
-        .metric-selector {
+        .metrics-explanation {
+            background: var(--bg-color);
+            border-radius: var(--border-radius);
+            padding: 30px;
+            margin-top: 40px;
+        }
+        .metric-section {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 20px;
             margin: 20px 0;
-            padding: 10px;
-            background: #fff;
-            border-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-        select {
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid #ddd;
+        .metric-section h3 {
+            color: var(--primary-color);
+            margin-top: 0;
         }
-        .metric-description {
-            margin-top: 10px;
-            font-size: 14px;
-            color: #666;
+        dt {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-top: 20px;
+        }
+        dd {
+            margin-left: 20px;
+            color: var(--text-secondary);
+        }
+        .usage-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 6px;
+        }
+        .mode-explanation {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .recommendations {
+            background: #e8f4f8;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            margin-top: 20px;
+        }
+        .recommendations h4 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+        ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        li {
+            margin: 5px 0;
+        }
+        @media (max-width: 900px) {
+            .controls-section {
+                flex-direction: column;
+            }
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            .mode-explanation {
+                grid-template-columns: 1fr;
+            }
+            .container {
+                padding: 10px;
+            }
+            .function-label {
+                font-size: 8px;
+            }
+        }
+        .sample-code-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: var(--bg-color);
+            border-radius: var(--border-radius);
+        }
+        .code-tabs {
+            margin-bottom: 10px;
+        }
+        .tab-button {
+            background: transparent;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            margin-right: 10px;
+        }
+        .tab-button.active {
+            background: var(--primary-color);
+            color: white;
+        }
+        .code-display {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: var(--border-radius);
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            margin: 0;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Code Complexity Visualizer</h1>
-        
-        <div class="upload-section">
-            <h2>Upload Go Source File</h2>
-            <input type="file" id="fileInput" accept=".go">
-            <button onclick="analyzeFile()">Analyze</button>
+        <header class="header">
+            <h1>Code Complexity Visualizer</h1>
+            <p>Analyze and visualize complexity metrics for Go source code</p>
+        </header>
+
+        <div class="controls-section">
+            <div class="mode-selector">
+                <label for="modeSelect">Analysis Mode: </label>
+                <select id="modeSelect" onchange="updateMode()">
+                    <option value="wasm">Browser (WASM)</option>
+                    <option value="server">Server</option>
+                </select>
+            </div>
+
+            <div class="upload-section">
+                <input type="file" id="fileInput" accept=".go">
+                <button onclick="analyzeFile()">Analyze</button>
+                <a href="#" class="sample-link" onclick="loadSampleData()">Try Sample Data</a>
+            </div>
         </div>
 
-        <div class="metric-selector">
-            <label for="metricSelect">Select Metric: </label>
-            <select id="metricSelect" onchange="updateVisualization()">
-                <option value="cyclomaticComplexity">Cyclomatic Complexity</option>
-                <option value="cognitiveComplexity">Cognitive Complexity</option>
-                <option value="maintainabilityIndex">Maintainability Index</option>
-                <option value="halsteadVolume">Halstead Volume</option>
-                <option value="linesOfCode">Lines of Code</option>
-            </select>
-            <div class="metric-description" id="metricDescription"></div>
+        <div class="sample-code-section" style="display: none;">
+            <h3>Sample Code</h3>
+            <div class="code-tabs">
+                <button class="tab-button active" onclick="showCode('simple')">SimpleFunction</button>
+                <button class="tab-button" onclick="showCode('complex')">ComplexFunction</button>
+            </div>
+            <pre class="code-display"><code id="code-content"></code></pre>
         </div>
 
         <div class="tooltip"></div>
-        <div id="visualization"></div>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-title">Cyclomatic Complexity</div>
+                <div id="cyclomatic" class="visualization"></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Cognitive Complexity</div>
+                <div id="cognitive" class="visualization"></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Maintainability Index</div>
+                <div id="maintainability" class="visualization"></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Lines of Code</div>
+                <div id="loc" class="visualization"></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Halstead Volume</div>
+                <div id="halstead-volume" class="visualization"></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Halstead Difficulty</div>
+                <div id="halstead-difficulty" class="visualization"></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Nested Depth</div>
+                <div id="nested-depth" class="visualization"></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Comment Density</div>
+                <div id="comment-density" class="visualization"></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Function Parameters</div>
+                <div id="function-params" class="visualization"></div>
+            </div>
+        </div>
+
+        <div class="metrics-explanation">
+            <h2>Understanding Code Complexity Metrics</h2>
+            
+            <div class="metric-section">
+                <h3>Core Complexity Metrics</h3>
+                <dl>
+                    <dt>Cyclomatic Complexity</dt>
+                    <dd>Measures the number of linearly independent paths through code. Lower is better.
+                        <ul>
+                            <li>1-10: Simple, well-structured code</li>
+                            <li>11-20: Moderately complex</li>
+                            <li>21+: Complex code that might need refactoring</li>
+                        </ul>
+                    </dd>
+
+                    <dt>Cognitive Complexity</dt>
+                    <dd>Measures how difficult the code is to understand. Lower is better.
+                        <ul>
+                            <li>0-5: Easy to understand</li>
+                            <li>6-15: Moderately difficult</li>
+                            <li>16+: Complex, consider breaking down</li>
+                        </ul>
+                    </dd>
+
+                    <dt>Maintainability Index</dt>
+                    <dd>A composite metric indicating code maintainability (0-100).
+                        <ul>
+                            <li>85-100: Highly maintainable</li>
+                            <li>65-84: Moderately maintainable</li>
+                            <li>0-64: Difficult to maintain</li>
+                        </ul>
+                    </dd>
+                </dl>
+            </div>
+
+            <div class="metric-section">
+                <h3>Halstead Metrics</h3>
+                <dl>
+                    <dt>Volume</dt>
+                    <dd>Represents the size of the implementation. Affected by:
+                        <ul>
+                            <li>Number of operators (if, for, etc.)</li>
+                            <li>Number of operands (variables, constants)</li>
+                            <li>Program length</li>
+                        </ul>
+                    </dd>
+
+                    <dt>Difficulty</dt>
+                    <dd>Indicates how hard the code is to write or understand. Influenced by:
+                        <ul>
+                            <li>Unique operators</li>
+                            <li>Total operands</li>
+                            <li>Program complexity</li>
+                        </ul>
+                    </dd>
+                </dl>
+            </div>
+
+            <div class="metric-section">
+                <h3>Additional Metrics</h3>
+                <dl>
+                    <dt>Nested Depth</dt>
+                    <dd>Maximum level of nested control structures. Lower is better.
+                        <ul>
+                            <li>1-3: Good</li>
+                            <li>4-5: Consider refactoring</li>
+                            <li>6+: Should be refactored</li>
+                        </ul>
+                    </dd>
+
+                    <dt>Comment Density</dt>
+                    <dd>Ratio of comments to code lines. Higher isn't always better.
+                        <ul>
+                            <li>0.1-0.2: Might need more documentation</li>
+                            <li>0.2-0.4: Generally good</li>
+                            <li>0.4+: Might be over-documented</li>
+                        </ul>
+                    </dd>
+
+                    <dt>Function Parameters</dt>
+                    <dd>Number of parameters in the function. Fewer is usually better.
+                        <ul>
+                            <li>0-3: Ideal</li>
+                            <li>4-5: Consider refactoring</li>
+                            <li>6+: Should be refactored</li>
+                        </ul>
+                    </dd>
+                </dl>
+            </div>
+
+            <div class="usage-section">
+                <h3>Using This Tool</h3>
+                <div class="mode-explanation">
+                    <h4>Browser Analysis (WASM)</h4>
+                    <ul>
+                        <li>Analyzes code directly in your browser</li>
+                        <li>No server communication needed</li>
+                        <li>Best for quick analysis of smaller files</li>
+                        <li>Works offline once loaded</li>
+                    </ul>
+
+                    <h4>Server Analysis</h4>
+                    <ul>
+                        <li>Handles larger files more efficiently</li>
+                        <li>More consistent performance</li>
+                        <li>Requires server connection</li>
+                        <li>Better for batch processing</li>
+                    </ul>
+                </div>
+
+                <div class="recommendations">
+                    <h4>Recommendations for Clean Code</h4>
+                    <ul>
+                        <li>Keep functions small and focused</li>
+                        <li>Limit nesting depth to 3-4 levels</li>
+                        <li>Keep cyclomatic complexity under 10</li>
+                        <li>Maintain good comment ratio without over-documenting</li>
+                        <li>Use descriptive names to reduce cognitive load</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
-        let currentData = null;
-        const metricDescriptions = {
-            cyclomaticComplexity: "Measures the number of linearly independent paths through code",
-            cognitiveComplexity: "Measures how difficult it is to understand the code's control flow",
-            maintainabilityIndex: "Indicates how maintainable the code is (higher is better)",
-            halsteadVolume: "Represents the size of the implementation of an algorithm",
-            linesOfCode: "Physical lines of code in the function"
+        let wasmInstance = null;
+        let currentMode = 'wasm';
+
+        // Initialize WASM
+        async function initWasm() {
+            if (!WebAssembly.instantiateStreaming) {
+                WebAssembly.instantiateStreaming = async (resp, importObject) => {
+                    const source = await (await resp).arrayBuffer();
+                    return await WebAssembly.instantiate(source, importObject);
+                };
+            }
+
+            try {
+                const go = new Go();
+                const result = await WebAssembly.instantiateStreaming(
+                    fetch("/static/analyzer.wasm"),
+                    go.importObject
+                );
+                wasmInstance = result.instance;
+                go.run(wasmInstance);
+            } catch (err) {
+                console.error("Failed to load WASM:", err);
+                document.getElementById('modeSelect').value = 'server';
+                currentMode = 'server';
+            }
+        }
+
+        function updateMode() {
+            currentMode = document.getElementById('modeSelect').value;
+        }
+
+        const metrics = {
+            cyclomatic: {
+                id: 'cyclomatic',
+                key: 'cyclomaticComplexity',
+                description: 'Number of linearly independent paths'
+            },
+            cognitive: {
+                id: 'cognitive',
+                key: 'cognitiveComplexity',
+                description: 'Difficulty to understand the code'
+            },
+            maintainability: {
+                id: 'maintainability',
+                key: 'maintainabilityIndex',
+                description: 'Overall maintainability (higher is better)'
+            },
+            loc: {
+                id: 'loc',
+                key: 'linesOfCode',
+                description: 'Physical lines of code'
+            },
+            'halstead-volume': {
+                id: 'halstead-volume',
+                key: 'halsteadVolume',
+                description: 'Size of implementation'
+            },
+            'halstead-difficulty': {
+                id: 'halstead-difficulty',
+                key: 'halsteadDifficulty',
+                description: 'Difficulty to understand'
+            },
+            'nested-depth': {
+                id: 'nested-depth',
+                key: 'nestedDepth',
+                description: 'Maximum nesting level of control structures'
+            },
+            'comment-density': {
+                id: 'comment-density',
+                key: 'commentDensity',
+                description: 'Ratio of comments to code lines'
+            },
+            'function-params': {
+                id: 'function-params',
+                key: 'functionParameters',
+                description: 'Number of function parameters'
+            }
         };
 
-        function updateMetricDescription() {
-            const metric = document.getElementById('metricSelect').value;
-            document.getElementById('metricDescription').textContent = metricDescriptions[metric];
+        const sampleData = [
+            {
+                name: "SimpleFunction",
+                cyclomaticComplexity: 1,
+                cognitiveComplexity: 1,
+                linesOfCode: 3,
+                halsteadVolume: 8.0,
+                halsteadDifficulty: 1.5,
+                halsteadEffort: 12.0,
+                maintainabilityIndex: 85.0,
+                nestedDepth: 1,
+                commentDensity: 0.2,
+                functionParameters: 0,
+                returnStatements: 1
+            },
+            {
+                name: "ComplexFunction",
+                cyclomaticComplexity: 3,
+                cognitiveComplexity: 4,
+                linesOfCode: 10,
+                halsteadVolume: 48.0,
+                halsteadDifficulty: 6.0,
+                halsteadEffort: 288.0,
+                maintainabilityIndex: 65.0,
+                nestedDepth: 2,
+                commentDensity: 0.15,
+                functionParameters: 2,
+                returnStatements: 2
+            }
+        ];
+
+        async function fetchSampleCode(type) {
+            try {
+                const response = await fetch(`/static/samples/${type}.go`);
+                if (!response.ok) {
+                    throw new Error('Failed to load sample code');
+                }
+                return await response.text();
+            } catch (error) {
+                console.error('Error loading sample code:', error);
+                return 'Error loading sample code';
+            }
+        }
+
+        async function showCode(type) {
+            // Update active tab
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[onclick="showCode('${type}')"]`).classList.add('active');
+
+            // Update code content
+            const code = await fetchSampleCode(type);
+            document.getElementById('code-content').textContent = code;
+        }
+
+        async function loadSampleData() {
+            currentData = sampleData;
+            visualizeAllMetrics(sampleData);
+            document.querySelector('.sample-code-section').style.display = 'block';
+            await showCode('simple'); // Show simple function code by default
         }
 
         async function analyzeFile() {
+            document.querySelector('.sample-code-section').style.display = 'none';
             const fileInput = document.getElementById('fileInput');
             const file = fileInput.files[0];
             if (!file) {
@@ -125,81 +613,87 @@
                 return;
             }
 
-            const formData = new FormData();
-            formData.append('file', file);
-
             try {
-                const response = await fetch('/analyze', {
-                    method: 'POST',
-                    body: formData
-                });
-                currentData = await response.json();
-                updateMetricDescription();
-                visualizeData();
+                const content = await file.text();
+                let results;
+
+                if (currentMode === 'wasm' && window.analyzeGoCode) {
+                    // Use WASM analysis
+                    const response = analyzeGoCode(content);
+                    if (response.error) {
+                        throw new Error(response.error);
+                    }
+                    results = JSON.parse(response.data);
+                } else {
+                    // Use server analysis
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    const response = await fetch('/analyze', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    results = await response.json();
+                }
+
+                currentData = results;
+                visualizeAllMetrics(results);
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error analyzing file');
+                alert('Error analyzing file: ' + error.message);
             }
         }
 
-        function updateVisualization() {
-            if (currentData) {
-                updateMetricDescription();
-                visualizeData();
+        // Initialize WASM on page load
+        window.addEventListener('load', async () => {
+            await initWasm();
+            await showCode('simple');
+        });
+
+        function createVisualization(data, metric) {
+            const container = d3.select(`#${metric.id}`);
+            if (!container.node()) {
+                console.warn(`Container for metric ${metric.id} not found`);
+                return;
             }
-        }
 
-        function visualizeData() {
-            const metric = document.getElementById('metricSelect').value;
-            
-            // Clear previous visualization
-            d3.select('#visualization').html('');
+            container.html(''); // Clear previous visualization
 
-            // Set up dimensions
-            const width = 800;
-            const height = 500;
-            const padding = {top: 40, right: 40, bottom: 100, left: 60};
+            const width = container.node().getBoundingClientRect().width;
+            const height = 300;
+            const padding = {top: 30, right: 20, bottom: 60, left: 60};
 
-            // Create SVG
-            const svg = d3.select('#visualization')
-                .append('svg')
+            const svg = container.append('svg')
                 .attr('width', width)
                 .attr('height', height);
 
-            // Create tooltip
             const tooltip = d3.select('.tooltip');
 
-            // Create scales
             const xScale = d3.scaleBand()
-                .domain(currentData.map(d => d.name))
+                .domain(data.map(d => d.name))
                 .range([padding.left, width - padding.right])
                 .padding(0.1);
 
             const yScale = d3.scaleLinear()
-                .domain([0, d3.max(currentData, d => d[metric])])
+                .domain([0, d3.max(data, d => d[metric.key])])
                 .range([height - padding.bottom, padding.top]);
 
             // Create bars
             svg.selectAll('rect')
-                .data(currentData)
+                .data(data)
                 .enter()
                 .append('rect')
                 .attr('x', d => xScale(d.name))
-                .attr('y', d => yScale(d[metric]))
+                .attr('y', d => yScale(d[metric.key]))
                 .attr('width', xScale.bandwidth())
-                .attr('height', d => height - padding.bottom - yScale(d[metric]))
+                .attr('height', d => height - padding.bottom - yScale(d[metric.key]))
                 .attr('class', 'function-node')
                 .on('mouseover', function(event, d) {
                     tooltip
                         .style('display', 'block')
                         .html(`
                             <strong>${d.name}</strong><br>
-                            Cyclomatic: ${d.cyclomaticComplexity}<br>
-                            Cognitive: ${d.cognitiveComplexity}<br>
-                            Lines: ${d.linesOfCode}<br>
-                            Maintainability: ${d.maintainabilityIndex.toFixed(2)}<br>
-                            Halstead Volume: ${d.halsteadVolume.toFixed(2)}<br>
-                            Halstead Difficulty: ${d.halsteadDifficulty.toFixed(2)}
+                            Value: ${d[metric.key].toFixed(2)}<br>
+                            ${metric.description}
                         `);
                 })
                 .on('mousemove', function(event) {
@@ -213,14 +707,14 @@
 
             // Add function names
             svg.selectAll('.function-label')
-                .data(currentData)
+                .data(data)
                 .enter()
                 .append('text')
                 .attr('class', 'function-label')
                 .attr('x', d => xScale(d.name) + xScale.bandwidth() / 2)
-                .attr('y', height - padding.bottom + 20)
+                .attr('y', height - padding.bottom + 10)
                 .attr('text-anchor', 'end')
-                .attr('transform', d => `rotate(-45, ${xScale(d.name) + xScale.bandwidth() / 2}, ${height - padding.bottom + 20})`)
+                .attr('transform', d => `rotate(-45, ${xScale(d.name) + xScale.bandwidth() / 2}, ${height - padding.bottom + 10})`)
                 .text(d => d.name);
 
             // Add axes
@@ -234,23 +728,27 @@
             svg.append('g')
                 .attr('transform', `translate(${padding.left}, 0)`)
                 .call(yAxis);
-
-            // Add axis labels
-            svg.append('text')
-                .attr('class', 'axis-label')
-                .attr('x', width / 2)
-                .attr('y', height - 10)
-                .attr('text-anchor', 'middle')
-                .text('Functions');
-
-            svg.append('text')
-                .attr('class', 'axis-label')
-                .attr('transform', 'rotate(-90)')
-                .attr('x', -height / 2)
-                .attr('y', 20)
-                .attr('text-anchor', 'middle')
-                .text(metricDescriptions[metric]);
         }
+
+        function visualizeAllMetrics(data) {
+            // Filter out metrics that have corresponding DOM elements
+            Object.values(metrics).forEach(metric => {
+                const container = document.getElementById(metric.id);
+                if (container) {
+                    createVisualization(data, metric);
+                }
+            });
+        }
+
+        // Add resize handler for responsive charts
+        window.addEventListener('resize', () => {
+            if (currentData) {
+                visualizeAllMetrics(currentData);
+            }
+        });
+
+        // Store current data for resize handling
+        let currentData = null;
     </script>
 </body>
 </html>
