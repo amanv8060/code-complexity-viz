@@ -136,11 +136,6 @@
             transition: transform 0.2s, box-shadow 0.2s;
         }
 
-        .metric-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
         .metric-title {
             font-size: 16px;
             font-weight: 600;
@@ -790,9 +785,9 @@
         const xAxis = d3.axisBottom(xScale);
         const yAxis = d3.axisLeft(yScale);
 
-        svg.append('g')
-                .attr('transform', `translate(0, ${height - padding.bottom})`)
-                .call(xAxis);
+        <!--?svg.append('g')-->
+        <!--?        .attr('transform', `translate(0, ${height - padding.bottom})`)-->
+        <!--?        .call(xAxis);-->
 
         svg.append('g')
                 .attr('transform', `translate(${padding.left}, 0)`)
