@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"syscall/js"
 
 	"github.com/aman/code-complexity-viz/analyzer"
@@ -9,17 +10,43 @@ import (
 
 func main() {
 	c := make(chan struct{}, 0)
-	js.Global().Set("analyzeGoCode", js.FuncOf(analyzeGoCode))
+	defer close(c)
+
+	// Register function and ensure cleanup
+	analyzeFunc := js.FuncOf(analyzeGoCode)
+	defer analyzeFunc.Release()
+
+	js.Global().Set("analyzeGoCode", analyzeFunc)
 	<-c
 }
 
-func analyzeGoCode(this js.Value, args []js.Value) interface{} {
+func analyzeGoCode(this js.Value, args []js.Value) (result interface{}) {
+	// Recover from panics
+	defer func() {
+		if r := recover(); r != nil {
+			result = wrap("Internal error: " + fmt.Sprint(r), nil)
+		}
+	}()
+
 	if len(args) < 1 {
-		return wrap("No code provided", nil)
+		return wrap("Error: No code provided", nil)
+	}
+
+	// Validate input type
+	if args[0].Type() != js.TypeString {
+		return wrap("Error: Input must be a string", nil)
 	}
 
 	// Get code from JavaScript
 	code := args[0].String()
+
+	// Validate code length
+	if len(code) == 0 {
+		return wrap("Error: Empty code provided", nil)
+	}
+	if len(code) > 5000000 { // 5MB limit
+		return wrap("Error: Code size exceeds limit", nil)
+	}
 
 	// Analyze the code
 	fileAnalyzer, err := analyzer.NewFileAnalyzer("temp.go", []byte(code))
