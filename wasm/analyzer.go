@@ -10,13 +10,7 @@ import (
 
 func main() {
 	c := make(chan struct{}, 0)
-	defer close(c)
-
-	// Register function and ensure cleanup
-	analyzeFunc := js.FuncOf(analyzeGoCode)
-	defer analyzeFunc.Release()
-
-	js.Global().Set("analyzeGoCode", analyzeFunc)
+	js.Global().Set("analyzeGoCode", js.FuncOf(analyzeGoCode))
 	<-c
 }
 
@@ -24,7 +18,7 @@ func analyzeGoCode(this js.Value, args []js.Value) (result interface{}) {
 	// Recover from panics
 	defer func() {
 		if r := recover(); r != nil {
-			result = wrap("Internal error: " + fmt.Sprint(r), nil)
+			result = wrap("Internal error: "+fmt.Sprint(r), nil)
 		}
 	}()
 
@@ -76,4 +70,4 @@ func wrap(err string, data interface{}) js.Value {
 		result["data"] = data
 	}
 	return js.ValueOf(result)
-} 
+}
